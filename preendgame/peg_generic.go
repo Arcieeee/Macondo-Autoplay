@@ -302,6 +302,9 @@ func (s *Solver) handleJobGeneric(ctx context.Context, j job, thread int,
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+	if j.ourMove.Play.Action() == move.MoveTypePass && s.skipOpponentPassOptim {
+		return nil
+	}
 	if s.logStream != nil {
 		s.threadLogs[thread] = jobLog{
 			JobID:   fmt.Sprintf("job_%d_%d", thread, time.Now().UnixNano()),
@@ -674,12 +677,11 @@ func (s *Solver) recursiveSolve(ctx context.Context, thread int, pegPlay *PreEnd
 		})
 
 		for idx := range genPlays {
-			if idx == len(genPlays)-1 {
-				fmt.Println("found last play")
-			}
 			tempm := &move.Move{}
 			conversions.SmallMoveToMove(genPlays[idx], tempm, g.Alphabet(), g.Board(), g.RackFor(g.PlayerOnTurn()))
-
+			if tempm.Action() == move.MoveTypePass && s.skipOpponentPassOptim {
+				continue
+			}
 			// Create a tree node for this move
 			var currentNode *treeNode
 			if s.logStream != nil {

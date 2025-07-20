@@ -380,11 +380,12 @@ type Solver struct {
 	logStream        io.Writer
 	solveOnlyMoves   []*move.Move
 
-	earlyCutoffOptim     bool
-	skipNonEmptyingOptim bool
-	skipTiebreaker       bool
-	skipLossOptim        bool
-	iterativeDeepening   bool
+	earlyCutoffOptim      bool
+	skipNonEmptyingOptim  bool
+	skipOpponentPassOptim bool
+	skipTiebreaker        bool
+	skipLossOptim         bool
+	iterativeDeepening    bool
 
 	numEndgamesSolved    atomic.Uint64
 	numCutoffs           atomic.Uint64
@@ -408,6 +409,7 @@ func (s *Solver) Init(g *game.Game, gd *kwg.KWG) error {
 	s.gaddag = gd
 	s.earlyCutoffOptim = true
 	s.skipNonEmptyingOptim = false
+	s.skipOpponentPassOptim = false
 	s.skipTiebreaker = false
 	return nil
 }
@@ -427,6 +429,7 @@ func (s *Solver) Solve(ctx context.Context) ([]*PreEndgamePlay, error) {
 		Bool("early-cutoff-optim", s.earlyCutoffOptim).
 		Bool("skip-non-emptying-optim", s.skipNonEmptyingOptim).
 		Bool("skip-tiebreaker-optim", s.skipTiebreaker).
+		Bool("skip-opponent-pass-optim", s.skipOpponentPassOptim).
 		Bool("skip-loss-optim", s.skipLossOptim).
 		Bool("iterative-deepening", s.iterativeDeepening).
 		Int("threads", s.threads).
@@ -803,6 +806,10 @@ func (s *Solver) SetEarlyCutoffOptim(o bool) {
 
 func (s *Solver) SetSkipNonEmptyingOptim(o bool) {
 	s.skipNonEmptyingOptim = o
+}
+
+func (s *Solver) SetSkipOpponentPassOptim(o bool) {
+	s.skipOpponentPassOptim = o
 }
 
 func (s *Solver) SetSkipLossOptim(o bool) {

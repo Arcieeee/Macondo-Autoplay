@@ -605,6 +605,7 @@ func (sc *ShellController) preendgame(cmd *shellcmd) (*Response, error) {
 	var err error
 	var earlyCutoff bool
 	var skipNonEmptying bool
+	var skipOpponentPassOptim bool
 	var skipLoss bool
 	var skipTiebreaker bool
 	var disableIterativeDeepening bool
@@ -623,6 +624,7 @@ func (sc *ShellController) preendgame(cmd *shellcmd) (*Response, error) {
 		return nil, err
 	}
 	skipNonEmptying = cmd.options.Bool("skip-non-emptying")
+	skipOpponentPassOptim = cmd.options.Bool("skip-opponent-pass-optim")
 	skipLoss = cmd.options.Bool("skip-loss")
 	earlyCutoff = cmd.options.Bool("early-cutoff")
 	skipTiebreaker = cmd.options.Bool("skip-tiebreaker")
@@ -676,6 +678,7 @@ func (sc *ShellController) preendgame(cmd *shellcmd) (*Response, error) {
 	sc.preendgameSolver.SetEndgamePlies(endgamePlies)
 	sc.preendgameSolver.SetEarlyCutoffOptim(earlyCutoff)
 	sc.preendgameSolver.SetSkipNonEmptyingOptim(skipNonEmptying)
+	sc.preendgameSolver.SetSkipOpponentPassOptim(skipOpponentPassOptim)
 	sc.preendgameSolver.SetSkipTiebreaker(skipTiebreaker)
 	sc.preendgameSolver.SetSkipLossOptim(skipLoss)
 	sc.preendgameSolver.SetIterativeDeepening(!disableIterativeDeepening)

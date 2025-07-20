@@ -78,6 +78,12 @@ Options:
     you can set skip-non-emptying to true if you want to skip analyzing plays
     that don't empty the bag, such as passes, or other short plays.
 
+    -skip-opponent-pass true
+
+    Macondo can skip analyzing opponent passes. This can result in a big speed
+    boost for N-in-the-bag preendgames, at the cost of accuracy; sometimes it makes
+    sense for our opponent to pass instead of emptying the bag.
+
     -opprack AENST
 
     If you have partial rack info for the opponent, enter it here. This can make
