@@ -823,7 +823,6 @@ func (sc *ShellController) handleAutoplay(args []string, options CmdOptions) err
 		}	
 	} else {
 		log.Debug().Msgf("Game Runner not running, normal/more time failed")
-	
 	}
 	if options.Bool("normaltime") {
 		if sc.gameRunnerRunning {
