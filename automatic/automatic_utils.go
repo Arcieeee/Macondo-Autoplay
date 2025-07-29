@@ -113,7 +113,7 @@ func playerNames(players []AutomaticRunnerPlayer) []string {
 type Job struct{ gidx int }
 
 func StartCompVCompStaticGames(ctx context.Context, cfg *config.Config,
-	numGames int, block bool, threads int,
+	numGames int, block bool, threads int, numTime int,
 	outputFilename, lexicon, letterDistribution string,
 	players []AutomaticRunnerPlayer) error {
 
@@ -144,7 +144,7 @@ func StartCompVCompStaticGames(ctx context.Context, cfg *config.Config,
 		return err
 	}
 
-	log.Info().Msgf("Starting %v games, %v threads", numGames, threads)
+	log.Info().Msgf("Starting %v games, %v threads, %v seconds per turn", numGames, threads, numTime)
 
 	CVCCounter.Set(0)
 	jobs := make(chan Job, threads*5)
@@ -166,7 +166,7 @@ func StartCompVCompStaticGames(ctx context.Context, cfg *config.Config,
 		i := i
 		g.Go(func() error {
 			defer wg.Done()
-			r := GameRunner{logchan: logChan, gamechan: gameChan,
+			r := GameRunner{logchan: logChan, gamechan: gameChan, numTime: numTime,
 				config: cfg, lexicon: lexicon, letterDistribution: letterDistribution}
 			err := r.Init(players)
 			if err != nil {

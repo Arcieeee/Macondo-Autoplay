@@ -23,8 +23,9 @@ import (
 	"github.com/domino14/macondo/movegen"
 )
 
+var numTime int
 var MaxTimePerTurn = 30 * time.Second
-var MaxTimePerEndgame = 15 * time.Second
+var MaxTimePerEndgame = 30 * time.Second
 
 // GameRunner is the master struct here for the automatic game logic.
 type GameRunner struct {
@@ -37,6 +38,7 @@ type GameRunner struct {
 	config             *config.Config
 	logchan            chan string
 	gamechan           chan string
+	numTime            int	
 	aiplayers          [2]aiturnplayer.AITurnPlayer
 	order              [2]int
 }
@@ -48,6 +50,7 @@ func NewGameRunner(logchan chan string, cfg *config.Config) *GameRunner {
 		config:             cfg,
 		lexicon:            cfg.GetString(config.ConfigDefaultLexicon),
 		letterDistribution: cfg.GetString(config.ConfigDefaultLetterDistribution),
+		numTime:            numTime,
 	}
 	r.Init([]AutomaticRunnerPlayer{
 		{"", "", pb.BotRequest_HASTY_BOT, 0, false},
@@ -72,6 +75,11 @@ func (r *GameRunner) Init(players []AutomaticRunnerPlayer) error {
 	if err != nil {
 		return err
 	}
+
+	numTime = r.config.GetInt("numTime")
+	// Set global timeouts based on numTime
+	MaxTimePerTurn = time.Duration(numTime) * time.Second
+	MaxTimePerEndgame = time.Duration(numTime) * time.Second
 
 	pnames := playerNames(players)
 
@@ -160,16 +168,6 @@ func (r *GameRunner) genBestStaticTurn(playerIdx int) *move.Move {
 
 func (r *GameRunner) genStochasticStaticTurn(playerIdx int) *move.Move {
 	return aiturnplayer.GenStochasticStaticTurn(r.game, r.aiplayers[playerIdx], playerIdx)
-}
-
-func MoreTime() {
-	MaxTimePerTurn = 60 * time.Second
-	MaxTimePerEndgame = 60 * time.Second
-}
-
-func NormalTime() {
-	MaxTimePerTurn = 30 * time.Second
-	MaxTimePerEndgame = 15 * time.Second
 }
 
 func (r *GameRunner) genBestMoveForBot(playerIdx int) *move.Move {

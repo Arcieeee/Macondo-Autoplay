@@ -759,7 +759,7 @@ func (sc *ShellController) commitAIMove() error {
 
 func (sc *ShellController) handleAutoplay(args []string, options CmdOptions) error {
 	var logfile, lexicon, letterDistribution, leavefile1, leavefile2, pegfile1, pegfile2 string
-	var numgames, numthreads int
+	var numgames, numthreads, numTime int
 	var block bool
 	var botcode1, botcode2 pb.BotRequest_BotCode
 	var minsimplies1, minsimplies2 int
@@ -812,17 +812,11 @@ func (sc *ShellController) handleAutoplay(args []string, options CmdOptions) err
 	if numgames, err = options.IntDefault("numgames", 1e9); err != nil {
 		return err
 	}
+	if numTime, err = options.IntDefault("time", 30); err != nil {
+		return err
+	}
 	stochastic1 = options.Bool("stochastic1")
 	stochastic2 = options.Bool("stochastic2")
-	if sc.gameRunnerRunning {
-		if options.String("time") == "normal" {
-			automatic.NormalTime()
-		} else if options.String("time") == "more" {
-			automatic.MoreTime()
-		}	
-	} else {
-		log.Debug().Msgf("Game Runner not running, normal/more time failed")
-	}
 	block = options.Bool("block")
 	if numthreads, err = options.IntDefault("threads", runtime.NumCPU()); err != nil {
 		return err
@@ -852,7 +846,7 @@ func (sc *ShellController) handleAutoplay(args []string, options CmdOptions) err
 	sc.showMessage("automatic game runner will log to " + logfile)
 	sc.gameRunnerCtx, sc.gameRunnerCancel = context.WithCancel(context.Background())
 	err = automatic.StartCompVCompStaticGames(
-		sc.gameRunnerCtx, sc.config, numgames, block, numthreads,
+		sc.gameRunnerCtx, sc.config, numgames, block, numthreads, numTime,
 		logfile, lexicon, letterDistribution,
 		[]automatic.AutomaticRunnerPlayer{
 			{LeaveFile: leavefile1,
