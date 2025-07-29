@@ -162,12 +162,12 @@ func (r *GameRunner) genStochasticStaticTurn(playerIdx int) *move.Move {
 	return aiturnplayer.GenStochasticStaticTurn(r.game, r.aiplayers[playerIdx], playerIdx)
 }
 
-func (r *GameRunner) MoreTime() {
+func MoreTime() {
 	MaxTimePerTurn = 60 * time.Second
 	MaxTimePerEndgame = 60 * time.Second
 }
 
-func (r *GameRunner) NormalTime() {
+func NormalTime() {
 	MaxTimePerTurn = 30 * time.Second
 	MaxTimePerEndgame = 10 * time.Second
 }

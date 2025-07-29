@@ -815,12 +815,15 @@ func (sc *ShellController) handleAutoplay(args []string, options CmdOptions) err
 	}
 	stochastic1 = options.Bool("stochastic1")
 	stochastic2 = options.Bool("stochastic2")
-	if options.Bool("moretime") {
-		if sc.gameRunnerRunning {
+	if sc.gameRunnerRunning {
+		if options.String("time") == "normal"{
+			gamerunner.NormalTime()
+		} else if options.String("time") == "more" {
 			gamerunner.MoreTime()
-		} else {
-			log.Debug().Msgf("Game Runner not running, moretime failed")
-		}
+		}	
+	} else {
+		log.Debug().Msgf("Game Runner not running, normal/more time failed")
+	
 	}
 	if options.Bool("normaltime") {
 		if sc.gameRunnerRunning {
