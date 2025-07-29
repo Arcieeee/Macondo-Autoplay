@@ -169,7 +169,7 @@ func MoreTime() {
 
 func NormalTime() {
 	MaxTimePerTurn = 30 * time.Second
-	MaxTimePerEndgame = 10 * time.Second
+	MaxTimePerEndgame = 15 * time.Second
 }
 
 func (r *GameRunner) genBestMoveForBot(playerIdx int) *move.Move {

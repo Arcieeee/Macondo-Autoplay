@@ -764,7 +764,6 @@ func (sc *ShellController) handleAutoplay(args []string, options CmdOptions) err
 	var botcode1, botcode2 pb.BotRequest_BotCode
 	var minsimplies1, minsimplies2 int
 	var stochastic1, stochastic2 bool
-	var moretime bool
 	var err error
 	if options.String("logfile") == "" {
 		logfile = "/tmp/autoplay.txt"
@@ -817,9 +816,9 @@ func (sc *ShellController) handleAutoplay(args []string, options CmdOptions) err
 	stochastic2 = options.Bool("stochastic2")
 	if sc.gameRunnerRunning {
 		if options.String("time") == "normal"{
-			gamerunner.NormalTime()
+			automatic.NormalTime()
 		} else if options.String("time") == "more" {
-			gamerunner.MoreTime()
+			automatic.MoreTime()
 		}	
 	} else {
 		log.Debug().Msgf("Game Runner not running, normal/more time failed")
