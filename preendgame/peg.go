@@ -283,7 +283,9 @@ func (p *PreEndgamePlay) String() string {
 }
 
 type jobLog struct {
+	JobID                string         `yaml:"job_id"`
 	PEGPlay              string         `yaml:"peg_play"`
+	Meta                 jobMeta        `yaml:"meta"`
 	FoundLosses          int            `yaml:"found_losses"`
 	MinPotentialLosses   int            `yaml:"min_potential_losses"`
 	CutoffAtStart        bool           `yaml:"cutoff_at_start"`
@@ -291,21 +293,71 @@ type jobLog struct {
 	PEGPlayEmptiesBag    bool           `yaml:"peg_play_empties_bag"`
 	Options              []jobOptionLog `yaml:"options"`
 	EndgamePlies         int            `yaml:"endgame_plies"`
+	Statistics           jobStatistics  `yaml:"statistics"`
 }
 
 type jobOptionLog struct {
-	PermutationInBag              string `yaml:"perm_in_bag"`
-	PermutationCount              int    `yaml:"perm_ct"`
-	OppRack                       string `yaml:"opp_rack"`
-	OurRack                       string `yaml:"our_rack"`
-	CutoffBecauseAlreadyLoss      bool   `yaml:"cutoff_already_loss"`
-	CutoffBecauseFinalizedOutcome bool   `yaml:"cutoff_finalized_outcome"`
-	FinalSpread                   int    `yaml:"final_spread"`
-	OppPerspective                bool   `yaml:"opp_perspective"`
-	EndgameMoves                  string `yaml:"endgame_moves"`
-	GameEnded                     bool   `yaml:"game_ended"`
-	TimeToSolveMs                 int64  `yaml:"time_to_solve_ms"`
+	PermutationInBag              string        `yaml:"perm_in_bag"`
+	PermutationCount              int           `yaml:"perm_ct"`
+	OppRack                       string        `yaml:"opp_rack"`
+	OurRack                       string        `yaml:"our_rack"`
+	CutoffBecauseAlreadyLoss      bool          `yaml:"cutoff_already_loss"`
+	CutoffBecauseFinalizedOutcome bool          `yaml:"cutoff_finalized_outcome"`
+	FinalSpread                   int           `yaml:"final_spread"`
+	OppPerspective                bool          `yaml:"opp_perspective"`
+	EndgameMoves                  string        `yaml:"endgame_moves"`
+	GameEnded                     bool          `yaml:"game_ended"`
+	TimeToSolveMs                 int64         `yaml:"time_to_solve_ms"`
+	ExecutionTree                 executionTree `yaml:"execution_tree,omitempty"`
 	// Options                  []jobOptionLog `yaml:"options"`
+}
+
+type gameState struct {
+	Spread        int    `yaml:"spread"`
+	OutcomeBefore string `yaml:"outcome_before,omitempty"`
+	OutcomeAfter  string `yaml:"outcome_after,omitempty"`
+	BagRemaining  int    `yaml:"bag_remaining"`
+	GameOver      bool   `yaml:"game_over"`
+}
+
+type cutoffInfo struct {
+	Reason       string `yaml:"reason,omitempty"`
+	EarlyBreak   bool   `yaml:"early_break"`
+	NodesSkipped int    `yaml:"nodes_skipped,omitempty"`
+}
+
+type timingInfo struct {
+	DurationMs int64 `yaml:"duration_ms"`
+	StartTime  int64 `yaml:"start_time,omitempty"`
+	EndTime    int64 `yaml:"end_time,omitempty"`
+}
+
+type treeNode struct {
+	Depth     int        `yaml:"depth"`
+	Player    int        `yaml:"player"`
+	Move      string     `yaml:"move"`
+	GameState gameState  `yaml:"game_state"`
+	Timing    timingInfo `yaml:"timing,omitempty"`
+	Cutoff    cutoffInfo `yaml:"cutoff,omitempty"`
+	Children  []treeNode `yaml:"children,omitempty"`
+}
+
+type executionTree struct {
+	Root treeNode `yaml:"root"`
+}
+
+type jobStatistics struct {
+	TotalNodes     int `yaml:"total_nodes"`
+	MaxDepth       int `yaml:"max_depth"`
+	Cutoffs        int `yaml:"cutoffs"`
+	EndgamesSolved int `yaml:"endgames_solved"`
+}
+
+type jobMeta struct {
+	Thread     int    `yaml:"thread"`
+	Timestamp  string `yaml:"timestamp"`
+	BagState   string `yaml:"bag_state"`
+	EmptiesBag bool   `yaml:"empties_bag"`
 }
 
 type Solver struct {
@@ -328,11 +380,12 @@ type Solver struct {
 	logStream        io.Writer
 	solveOnlyMoves   []*move.Move
 
-	earlyCutoffOptim     bool
-	skipNonEmptyingOptim bool
-	skipTiebreaker       bool
-	skipLossOptim        bool
-	iterativeDeepening   bool
+	earlyCutoffOptim      bool
+	skipNonEmptyingOptim  bool
+	skipOpponentPassOptim bool
+	skipTiebreaker        bool
+	skipLossOptim         bool
+	iterativeDeepening    bool
 
 	numEndgamesSolved    atomic.Uint64
 	numCutoffs           atomic.Uint64
@@ -356,6 +409,7 @@ func (s *Solver) Init(g *game.Game, gd *kwg.KWG) error {
 	s.gaddag = gd
 	s.earlyCutoffOptim = true
 	s.skipNonEmptyingOptim = false
+	s.skipOpponentPassOptim = false
 	s.skipTiebreaker = false
 	return nil
 }
@@ -375,6 +429,7 @@ func (s *Solver) Solve(ctx context.Context) ([]*PreEndgamePlay, error) {
 		Bool("early-cutoff-optim", s.earlyCutoffOptim).
 		Bool("skip-non-emptying-optim", s.skipNonEmptyingOptim).
 		Bool("skip-tiebreaker-optim", s.skipTiebreaker).
+		Bool("skip-opponent-pass-optim", s.skipOpponentPassOptim).
 		Bool("skip-loss-optim", s.skipLossOptim).
 		Bool("iterative-deepening", s.iterativeDeepening).
 		Int("threads", s.threads).
@@ -753,6 +808,10 @@ func (s *Solver) SetSkipNonEmptyingOptim(o bool) {
 	s.skipNonEmptyingOptim = o
 }
 
+func (s *Solver) SetSkipOpponentPassOptim(o bool) {
+	s.skipOpponentPassOptim = o
+}
+
 func (s *Solver) SetSkipLossOptim(o bool) {
 	s.skipLossOptim = o
 }
@@ -775,6 +834,76 @@ func (s *Solver) IsSolving() bool {
 
 func (s *Solver) SetSolveOnly(m []*move.Move) {
 	s.solveOnlyMoves = m
+}
+
+// Tree node helper functions
+func (t *treeNode) addChild(child treeNode) *treeNode {
+	t.Children = append(t.Children, child)
+	return &t.Children[len(t.Children)-1]
+}
+
+func (t *treeNode) updateGameState(spread int, outcomeBefore, outcomeAfter string, bagRemaining int, gameOver bool) {
+	t.GameState.Spread = spread
+	t.GameState.OutcomeBefore = outcomeBefore
+	t.GameState.OutcomeAfter = outcomeAfter
+	t.GameState.BagRemaining = bagRemaining
+	t.GameState.GameOver = gameOver
+}
+
+func (t *treeNode) setCutoff(reason string, earlyBreak bool, nodesSkipped int) {
+	t.Cutoff.Reason = reason
+	t.Cutoff.EarlyBreak = earlyBreak
+	t.Cutoff.NodesSkipped = nodesSkipped
+}
+
+func (t *treeNode) startTiming() {
+	t.Timing.StartTime = time.Now().UnixMilli()
+}
+
+func (t *treeNode) endTiming() {
+	endTime := time.Now().UnixMilli()
+	t.Timing.EndTime = endTime
+	t.Timing.DurationMs = endTime - t.Timing.StartTime
+}
+
+func (s *jobStatistics) updateStats(totalNodes, maxDepth, cutoffs, endgamesSolved int) {
+	s.TotalNodes = totalNodes
+	s.MaxDepth = maxDepth
+	s.Cutoffs = cutoffs
+	s.EndgamesSolved = endgamesSolved
+}
+
+func createTreeNode(depth int, player int, move string) treeNode {
+	return treeNode{
+		Depth:    depth,
+		Player:   player,
+		Move:     move,
+		Children: []treeNode{},
+	}
+}
+
+func (s *Solver) calculateTreeStats(node *treeNode) (totalNodes int, maxDepth int, cutoffs int) {
+	if node.Move == "" {
+		return 0, 0, 0
+	}
+
+	totalNodes = 1
+	maxDepth = node.Depth
+
+	if node.Cutoff.EarlyBreak {
+		cutoffs++
+	}
+
+	for _, child := range node.Children {
+		childNodes, childDepth, childCutoffs := s.calculateTreeStats(&child)
+		totalNodes += childNodes
+		if childDepth > maxDepth {
+			maxDepth = childDepth
+		}
+		cutoffs += childCutoffs
+	}
+
+	return totalNodes, maxDepth, cutoffs
 }
 
 func toUserFriendly(tileset []tilemapping.MachineLetter, alphabet *tilemapping.TileMapping, pegPlay *move.Move) string {
